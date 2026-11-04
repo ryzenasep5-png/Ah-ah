@@ -27,7 +27,7 @@ No kernel image is published yet. KernelSU-Next, SUSFS, MemKernel, runtime perfo
 
 ## Build
 
-Use GitHub Actions → Build Poco X3 NFC kernel → Run workflow. The default run builds the pinned upstream source with the verified vendor defconfig. Optional KernelSU-Next and MemKernel paths are opt-in until the baseline build is confirmed.
+Use GitHub Actions → Build Poco X3 NFC kernel → Run workflow. The current workflow builds the pinned upstream source with the verified vendor defconfig. KernelSU-Next, SUSFS, and MemKernel are not yet wired into this baseline workflow.
 
 Artifacts are uploaded only when actually produced. A successful compile does not establish boot compatibility.
 
