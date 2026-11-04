@@ -63,7 +63,8 @@ jobs:
         run: |
           cd kernel
           set -o pipefail
-          make O=../out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image.gz-dtb dtbs 2>&1 | tee ../build.log
+          # Linux 4.14's bundled DTC relies on common-symbol behavior removed by modern GCC defaults.
+          make O=../out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- HOSTCFLAGS=-fcommon -j"$(nproc)" Image.gz-dtb dtbs 2>&1 | tee ../build.log
 
       - name: Validate outputs
         if: success()
