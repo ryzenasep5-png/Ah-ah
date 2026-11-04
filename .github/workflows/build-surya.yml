@@ -1,0 +1,96 @@
+name: Build Poco X3 NFC kernel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-surya.yml"
+      - "docs/**"
+      - "README.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ryzenx-surya-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Linux 4.14.117 (surya baseline)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache flex gcc-aarch64-linux-gnu git libssl-dev libncurses-dev lz4 make python3 rsync unzip wget
+
+      - name: Checkout pinned Xiaomi kernel source
+        env:
+          SOURCE_REPO: https://github.com/MiCode/Xiaomi_Kernel_OpenSource.git
+          SOURCE_BRANCH: surya-q-oss
+          SOURCE_COMMIT: 5e0a8dada006832d3c0511fdc7903c68474cad87
+        run: |
+          git clone --filter=blob:none --no-checkout --single-branch --branch "$SOURCE_BRANCH" "$SOURCE_REPO" kernel
+          cd kernel
+          git fetch --depth=1 origin "$SOURCE_COMMIT"
+          git checkout --detach "$SOURCE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          echo "SOURCE_COMMIT=$SOURCE_COMMIT" >> "$GITHUB_ENV"
+          echo "SOURCE_BRANCH=$SOURCE_BRANCH" >> "$GITHUB_ENV"
+          git log -1 --format='%H%n%s' | tee ../source-commit.txt
+
+      - name: Verify source version and defconfig
+        run: |
+          cd kernel
+          grep -q '^VERSION = 4$' Makefile
+          grep -q '^PATCHLEVEL = 14$' Makefile
+          grep -q '^SUBLEVEL = 117$' Makefile
+          test -f arch/arm64/configs/vendor/sdmsteppe-perf_defconfig
+          echo "Kernel Makefile: $(grep -E '^(VERSION|PATCHLEVEL|SUBLEVEL) =' Makefile | tr '\n' ' ')"
+          echo "Defconfig: arch/arm64/configs/vendor/sdmsteppe-perf_defconfig"
+
+      - name: Configure ARM64 kernel
+        run: |
+          cd kernel
+          make O=../out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- vendor/sdmsteppe-perf_defconfig
+          test -s ../out/.config
+          grep -E '^(CONFIG_ARCH_SM6150|CONFIG_ARCH_SDMMAGPIE|CONFIG_QCOM_KGSL|CONFIG_THERMAL)=' ../out/.config || true
+
+      - name: Build kernel image and device trees
+        run: |
+          cd kernel
+          set -o pipefail
+          make O=../out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image.gz-dtb dtbs 2>&1 | tee ../build.log
+
+      - name: Validate outputs
+        if: success()
+        run: |
+          test -s out/arch/arm64/boot/Image.gz-dtb
+          file out/arch/arm64/boot/Image.gz-dtb | tee artifact-validation.txt
+          sha256sum out/arch/arm64/boot/Image.gz-dtb | tee SHA256SUMS
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ryzenx-surya-build-logs
+          path: |
+            build.log
+            source-commit.txt
+            artifact-validation.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload kernel image and checksum
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ryzenx-surya-kernel
+          path: |
+            out/arch/arm64/boot/Image.gz-dtb
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
