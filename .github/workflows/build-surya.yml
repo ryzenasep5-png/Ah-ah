@@ -42,6 +42,31 @@ jobs:
           echo "SOURCE_BRANCH=$SOURCE_BRANCH" >> "$GITHUB_ENV"
           git log -1 --format='%H%n%s' | tee ../source-commit.txt
 
+      - name: Patch legacy GCC wrapper for Python 3
+        run: |
+          cd kernel
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("scripts/gcc-wrapper.py")
+          s = p.read_text()
+          replacements = {
+              'print >> sys.stderr, "error, forbidden warning:", m.group(2)': 'print("error, forbidden warning:", m.group(2), file=sys.stderr)',
+              'print >> sys.stderr, line,': 'sys.stderr.write(line)',
+              "print >> sys.stderr, args[0] + ':',e.strerror": "print(args[0] + ':', e.strerror, file=sys.stderr)",
+              "print >> sys.stderr, 'Is your PATH set correctly?'": "print('Is your PATH set correctly?', file=sys.stderr)",
+              "print >> sys.stderr, ' '.join(args), str(e)": "print(' '.join(args), str(e), file=sys.stderr)",
+              'subprocess.Popen(args, stderr=subprocess.PIPE)': 'subprocess.Popen(args, stderr=subprocess.PIPE, universal_newlines=True)',
+              '#! /usr/bin/env python2': '#! /usr/bin/env python3',
+          }
+          for before, after in replacements.items():
+              if before not in s:
+                  raise SystemExit("Expected legacy wrapper text not found: " + before)
+              s = s.replace(before, after)
+          if "print >>" in s:
+              raise SystemExit("Unconverted Python 2 print syntax remains")
+          p.write_text(s)
+          PY
+
       - name: Verify source version and defconfig
         run: |
           cd kernel
