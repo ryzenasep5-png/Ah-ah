@@ -33,7 +33,9 @@ Updated: 2026-11-05
 - Source branch and commit metadata: SUCCESS
 - Kernel version and defconfig path: SUCCESS
 - Full source/device-tree audit: INCOMPLETE
-- Baseline build: QUEUED (GitHub Actions run 41900666225)
+- Baseline build: FAILED (latest observed run #16; no jobs returned by GitHub Jobs API)
+- Latest workflow run: https://github.com/ryzenasep5-png/Ah-ah/actions/runs/41910302319
+- Retry: requested through GitHub API; GitHub rejected retry because the run has no retryable failed jobs
 - Workflow URL: https://github.com/ryzenasep5-png/Ah-ah/actions/runs/41900666225
 - KernelSU-Next: NOT TESTED
 - SUSFS: NOT TESTED
@@ -52,3 +54,10 @@ Updated: 2026-11-05
 4. Audit KernelSU-Next legacy integration and SUSFS compatibility separately.
 5. Consider MemKernel only through the user-provided setup instructions, without reading its source; keep it disabled until a successful baseline build.
 6. Do not claim boot or performance results without physical-device testing.
+
+
+## 2026-11-05 retry checkpoint
+- Latest known workflow run #16 (commit `71f04231b48eea06980f06bd3f27fde649cf9427`) concluded `failure`.
+- GitHub Jobs API returned zero jobs for this run, so no compiler log is available from the job endpoint.
+- Retrying failed jobs was rejected by GitHub (HTTP 403: run cannot be retried).
+- This documentation update is intended to trigger a fresh push-based workflow run; verify its status before drawing conclusions.
