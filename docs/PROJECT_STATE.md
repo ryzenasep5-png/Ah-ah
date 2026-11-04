@@ -28,10 +28,13 @@ Updated: 2026-11-05
 ## Status
 - Repository access: SUCCESS
 - README: committed
+- Initial GitHub Actions workflow: committed
+- Source audit note: committed
 - Source branch and commit metadata: SUCCESS
 - Kernel version and defconfig path: SUCCESS
 - Full source/device-tree audit: INCOMPLETE
-- Baseline build: NOT TESTED
+- Baseline build: QUEUED (GitHub Actions run 41900666225)
+- Workflow URL: https://github.com/ryzenasep5-png/Ah-ah/actions/runs/41900666225
 - KernelSU-Next: NOT TESTED
 - SUSFS: NOT TESTED
 - MemKernel: NOT INTEGRATED (user instructed not to inspect its source)
