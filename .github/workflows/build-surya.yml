@@ -65,10 +65,10 @@ jobs:
           if "print >>" in s:
               raise SystemExit("Unconverted Python 2 print syntax remains")
           # Allow only two known GCC false-positive warnings from this legacy 4.14 tree.
-          marker = "allowed_warnings = set([\\n"
+          marker = "allowed_warnings = set(["
           if marker not in s:
               raise SystemExit("GCC wrapper warning allowlist not found")
-          s = s.replace(marker, marker + '    "thread_info.h:108",\\n    "cmpxchg.h:38",\\n', 1)
+          s = s.replace(marker, marker + '\n    "thread_info.h:108",\n    "cmpxchg.h:38",\n', 1)
           p.write_text(s)
           PY
 
