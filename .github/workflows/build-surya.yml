@@ -154,6 +154,50 @@ jobs:
               raise SystemExit("Expected ext4 zero extent declaration not found uniquely")
           p.write_text(s.replace(old, new, 1))
 
+          # Correct misleading indentation in ext4 encrypted-page handling.
+          # The IS_ERR check is a sibling of the hardware-encryption condition.
+          p = Path("fs/ext4/page-io.c")
+          s = p.read_text()
+          old = """\tretry_encrypt:
+\tif (!fscrypt_using_hardware_encryption(inode))
+\t\tdata_page = fscrypt_encrypt_page(inode, page, PAGE_SIZE, 0,
+\t\t\t\t\t\tpage->index, gfp_flags);
+\t\tif (IS_ERR(data_page)) {
+\t\t\tret = PTR_ERR(data_page);
+\t\t\tif (ret == -ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
+\t\t\t\tif (io->io_bio) {
+\t\t\t\t\text4_io_submit(io);
+\t\t\t\t\tcongestion_wait(BLK_RW_ASYNC, HZ/50);
+\t\t\t\t}
+\t\t\t\tgfp_flags |= __GFP_NOFAIL;
+\t\t\t\tgoto retry_encrypt;
+\t\t\t}
+\t\t\tdata_page = NULL;
+\t\t\tgoto out;
+\t\t}
+\t}"""
+          new = """\tretry_encrypt:
+\tif (!fscrypt_using_hardware_encryption(inode))
+\t\tdata_page = fscrypt_encrypt_page(inode, page, PAGE_SIZE, 0,
+\t\t\t\t\t\tpage->index, gfp_flags);
+\tif (IS_ERR(data_page)) {
+\t\tret = PTR_ERR(data_page);
+\t\tif (ret == -ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
+\t\t\tif (io->io_bio) {
+\t\t\t\text4_io_submit(io);
+\t\t\t\tcongestion_wait(BLK_RW_ASYNC, HZ/50);
+\t\t\t}
+\t\t\tgfp_flags |= __GFP_NOFAIL;
+\t\t\tgoto retry_encrypt;
+\t\t}
+\t\tdata_page = NULL;
+\t\tgoto out;
+\t}
+\t}"""
+          if old not in s:
+              raise SystemExit("Expected ext4 page-io encryption block not found")
+          p.write_text(s.replace(old, new, 1))
+
           # The debugfs callback formats a u64 value, not unsigned long.
           p = Path("mm/cma_debug.c")
           s = p.read_text()
