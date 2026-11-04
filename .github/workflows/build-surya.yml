@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: ryzenx-surya-build
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
