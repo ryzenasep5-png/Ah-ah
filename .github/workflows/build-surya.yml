@@ -68,8 +68,19 @@ jobs:
           marker = "allowed_warnings = set(["
           if marker not in s:
               raise SystemExit("GCC wrapper warning allowlist not found")
-          s = s.replace(marker, marker + '\n    "thread_info.h:108",\n    "cmpxchg.h:38",\n', 1)
+          s = s.replace(marker, marker + '\n    "thread_info.h:108",\n    "cmpxchg.h:38",\n    "atomic_ll_sc.h:259",\n', 1)
           p.write_text(s)
+          PY
+          # Fix a real printf type mismatch in the legacy surya source.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("kernel/arch/arm64/kernel/bootinfo.c")
+          s = p.read_text()
+          old = 'seq_printf(m, "%lu.%02lu\\n", maxfreq/100, maxfreq%100);'
+          new = 'seq_printf(m, "%u.%02u\\n", maxfreq/100, maxfreq%100);'
+          if old not in s:
+              raise SystemExit("Expected cpumaxfreq format string not found")
+          p.write_text(s.replace(old, new, 1))
           PY
 
       - name: Verify source version and defconfig
