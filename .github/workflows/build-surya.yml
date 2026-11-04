@@ -174,6 +174,39 @@ jobs:
               raise SystemExit("Expected F2FS blkaddr_in_node expression not found uniquely")
           p.write_text(s.replace(old, new, 1))
 
+          # Keep the DIAG peripheral output aligned instead of passing a packed-member address.
+          p = Path("drivers/char/diag/diagchar_core.c")
+          s = p.read_text()
+          old = "int curr_mode, err = 0, peripheral = 0;"
+          new = "int curr_mode, err = 0, peripheral = -EINVAL;"
+          if s.count(old) != 1:
+              raise SystemExit("Expected DIAG peripheral local not found")
+          s = s.replace(old, new, 1)
+          old = "\t\tparam->peripheral = -EINVAL;"
+          new = "\t\tperipheral = -EINVAL;"
+          if s.count(old) != 1:
+              raise SystemExit("Expected DIAG peripheral initialization not found")
+          s = s.replace(old, new, 1)
+          old = "\t\t\t\t\t&param->peripheral)) {"
+          new = "\t\t\t\t\t&peripheral)) {"
+          if s.count(old) != 1:
+              raise SystemExit("Expected DIAG peripheral output argument not found")
+          s = s.replace(old, new, 1)
+          old = "\t\t}\n\n\t\tDIAG_LOG(DIAG_DEBUG_USERSPACE,"
+          new = "\t\t}\n\t\tparam->peripheral = peripheral;\n\n\t\tDIAG_LOG(DIAG_DEBUG_USERSPACE,"
+          if s.count(old) != 1:
+              raise SystemExit("Expected DIAG loop end not found")
+          p.write_text(s.replace(old, new, 1))
+
+          # Access the packed regcache rb_node through its known member offset.
+          p = Path("drivers/base/regmap/regcache-rbtree.c")
+          s = p.read_text()
+          old = "rb_link_node(&rbnode->node, parent, new);"
+          new = "rb_link_node((struct rb_node *)((char *)rbnode + offsetof(struct regcache_rbtree_node, node)), parent, new);"
+          if s.count(old) != 1:
+              raise SystemExit("Expected regcache rb_link_node call not found uniquely")
+          p.write_text(s.replace(old, new, 1))
+
           # The debugfs callback formats a u64 value, not unsigned long.
           p = Path("mm/cma_debug.c")
           s = p.read_text()
