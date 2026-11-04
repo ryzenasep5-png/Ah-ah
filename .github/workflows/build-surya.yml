@@ -144,6 +144,16 @@ jobs:
           s = s.replace("inst->free = free;", "inst->free = xts_free;", 1)
           p.write_text(s)
 
+          # Fully initialize ext4 extent temporaries; GCC 12 detects a possible
+          # read of zero_ex2.ee_start_lo after only ee_len was initialized.
+          p = Path("fs/ext4/extents.c")
+          s = p.read_text()
+          old = "struct ext4_extent zero_ex1, zero_ex2;"
+          new = "struct ext4_extent zero_ex1 = { 0 }, zero_ex2 = { 0 };"
+          if s.count(old) != 1:
+              raise SystemExit("Expected ext4 zero extent declaration not found uniquely")
+          p.write_text(s.replace(old, new, 1))
+
           # The debugfs callback formats a u64 value, not unsigned long.
           p = Path("mm/cma_debug.c")
           s = p.read_text()
