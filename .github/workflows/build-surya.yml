@@ -131,6 +131,38 @@ jobs:
               raise SystemExit("Expected packed session_key call not found")
           p.write_text(s.replace(old_call, new_call, 1))
 
+          # Parse tag 65 into aligned storage; auth_tok is packed.
+          old_parse = '''\trc = parse_tag_65_packet(&(auth_tok->session_key),
+          \t\t\t\t &cipher_code, msg);'''
+          new_parse = '''\trc = parse_tag_65_packet(&session_key,
+          \t\t\t\t &cipher_code, msg);'''
+          if old_parse not in s:
+              raise SystemExit("Expected packed parse_tag_65_packet call not found")
+          s = s.replace(old_parse, new_parse, 1)
+          old_fields = '''\tauth_tok->session_key.flags |= ECRYPTFS_CONTAINS_DECRYPTED_KEY;
+          \tmemcpy(crypt_stat->key, auth_tok->session_key.decrypted_key,
+          \t       auth_tok->session_key.decrypted_key_size);
+          \tcrypt_stat->key_size = auth_tok->session_key.decrypted_key_size;'''
+          new_fields = '''\tsession_key.flags |= ECRYPTFS_CONTAINS_DECRYPTED_KEY;
+          \tmemcpy((char *)auth_tok +
+          \t       offsetof(struct ecryptfs_auth_tok, session_key),
+          \t       &session_key, sizeof(session_key));
+          \tmemcpy(crypt_stat->key, session_key.decrypted_key,
+          \t       session_key.decrypted_key_size);
+          \tcrypt_stat->key_size = session_key.decrypted_key_size;'''
+          if old_fields not in s:
+              raise SystemExit("Expected packed session_key field access not found")
+          p.write_text(s.replace(old_fields, new_fields, 1))
+
+          # Avoid collision with the C library's built-in free() declaration.
+          p = Path("crypto/xts.c")
+          s = p.read_text()
+          if s.count("static void free(struct skcipher_instance *inst)") != 1 or s.count("inst->free = free;") != 1:
+              raise SystemExit("Expected XTS free callback declarations not found")
+          s = s.replace("static void free(struct skcipher_instance *inst)", "static void xts_free(struct skcipher_instance *inst)", 1)
+          s = s.replace("inst->free = free;", "inst->free = xts_free;", 1)
+          p.write_text(s)
+
           # The debugfs callback formats a u64 value, not unsigned long.
           p = Path("mm/cma_debug.c")
           s = p.read_text()
