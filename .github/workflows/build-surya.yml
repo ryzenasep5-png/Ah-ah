@@ -64,7 +64,7 @@ jobs:
               s = s.replace(before, after)
           if "print >>" in s:
               raise SystemExit("Unconverted Python 2 print syntax remains")
-          # Allow only two known GCC false-positive warnings from this legacy 4.14 tree.
+          # Allow only exact legacy GCC warning locations reviewed for this 4.14 tree.
           marker = "allowed_warnings = set(["
           if marker not in s:
               raise SystemExit("GCC wrapper warning allowlist not found")
@@ -74,7 +74,7 @@ jobs:
           # Fix a real printf type mismatch in the legacy surya source.
           python3 - <<'PY'
           from pathlib import Path
-          p = Path("kernel/arch/arm64/kernel/bootinfo.c")
+          p = Path("arch/arm64/kernel/bootinfo.c")
           s = p.read_text()
           old = 'seq_printf(m, "%lu.%02lu\\n", maxfreq/100, maxfreq%100);'
           new = 'seq_printf(m, "%u.%02u\\n", maxfreq/100, maxfreq%100);'
