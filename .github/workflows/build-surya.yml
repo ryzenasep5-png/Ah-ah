@@ -164,6 +164,16 @@ jobs:
               raise SystemExit("Expected ext4 page-io encryption block not found")
           p.write_text(s.replace(old, new, 1))
 
+          # Avoid taking the address of a packed F2FS inode member directly.
+          # Preserve the member offset while forming the pointer via byte arithmetic.
+          p = Path("fs/f2fs/f2fs.h")
+          s = p.read_text()
+          old = "\treturn RAW_IS_INODE(node) ? node->i.i_addr : node->dn.addr;"
+          new = "\treturn RAW_IS_INODE(node) ? (__le32 *)((unsigned char *)&node->i + offsetof(struct f2fs_inode, i_addr)) : node->dn.addr;"
+          if s.count(old) != 1:
+              raise SystemExit("Expected F2FS blkaddr_in_node expression not found uniquely")
+          p.write_text(s.replace(old, new, 1))
+
           # The debugfs callback formats a u64 value, not unsigned long.
           p = Path("mm/cma_debug.c")
           s = p.read_text()
