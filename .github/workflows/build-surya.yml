@@ -83,6 +83,64 @@ jobs:
           p.write_text(s.replace(old, new, 1))
           PY
 
+      - name: Fix verified legacy source warnings
+        run: |
+          cd kernel
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # Fix a misleadingly indented unconditional exit in the EBUSY path.
+          p = Path("security/pfe/pfk_ice.c")
+          s = p.read_text()
+          old = '''\t\tif (ret == -EBUSY) {
+          \t\t\tif (qcom_ice_setup_ice_hw((const char *)s_type, false))
+          \t\t\t\tpr_err("%s: clock disable failed\\n", __func__);
+          \t\t\t\tgoto out;
+          \t\t}'''
+          new = '''\t\tif (ret == -EBUSY) {
+          \t\t\tif (qcom_ice_setup_ice_hw((const char *)s_type, false))
+          \t\t\t\tpr_err("%s: clock disable failed\\n", __func__);
+          \t\t\tgoto out;
+          \t\t}'''
+          if old not in s:
+              raise SystemExit("Expected pfk_ice EBUSY block not found")
+          p.write_text(s.replace(old, new, 1))
+
+          # Copy the packed session_key into aligned local storage before use.
+          p = Path("fs/ecryptfs/keystore.c")
+          s = p.read_text()
+          old_decl = '''\tchar *payload = NULL;
+          \tsize_t payload_len = 0;
+          \tint rc;'''
+          new_decl = '''\tchar *payload = NULL;
+          \tsize_t payload_len = 0;
+          \tstruct ecryptfs_session_key session_key;
+          \tint rc;'''
+          if old_decl not in s:
+              raise SystemExit("Expected keystore local declarations not found")
+          s = s.replace(old_decl, new_decl, 1)
+          old_call = '''\trc = write_tag_64_packet(auth_tok_sig, &(auth_tok->session_key),
+          \t\t\t\t &payload, &payload_len);'''
+          new_call = '''\tmemcpy(&session_key,
+          \t       (char *)auth_tok +
+          \t       offsetof(struct ecryptfs_auth_tok, session_key),
+          \t       sizeof(session_key));
+          \trc = write_tag_64_packet(auth_tok_sig, &session_key,
+          \t\t\t\t &payload, &payload_len);'''
+          if old_call not in s:
+              raise SystemExit("Expected packed session_key call not found")
+          p.write_text(s.replace(old_call, new_call, 1))
+
+          # The debugfs callback formats a u64 value, not unsigned long.
+          p = Path("mm/cma_debug.c")
+          s = p.read_text()
+          old_fmt = 'DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "0x%lx\\n");'
+          new_fmt = 'DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "0x%llx\\n");'
+          if old_fmt not in s:
+              raise SystemExit("Expected CMA debugfs format string not found")
+          p.write_text(s.replace(old_fmt, new_fmt, 1))
+          PY
+
       - name: Verify source version and defconfig
         run: |
           cd kernel
