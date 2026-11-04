@@ -110,25 +110,25 @@ jobs:
           p = Path("fs/ecryptfs/keystore.c")
           s = p.read_text()
           fn_start = s.index("decrypt_pki_encrypted_session_key(")
-          fn_end = s.index("\\nstatic void wipe_auth_tok_list", fn_start)
+          fn_end = s.index("\nstatic void wipe_auth_tok_list", fn_start)
           fn = s[fn_start:fn_end]
-          old_decl = "\\tsize_t payload_len = 0;\\n\\tint rc;"
-          new_decl = "\\tsize_t payload_len = 0;\\n\\tstruct ecryptfs_session_key session_key;\\n\\tint rc;"
+          old_decl = "\tsize_t payload_len = 0;\n\tint rc;"
+          new_decl = "\tsize_t payload_len = 0;\n\tstruct ecryptfs_session_key session_key;\n\tint rc;"
           if old_decl not in fn:
               raise SystemExit("Expected decrypt_pki local declarations not found")
           fn = fn.replace(old_decl, new_decl, 1)
-          old_write = "\\trc = write_tag_64_packet(auth_tok_sig, &(auth_tok->session_key),\\n\\t\\t\\t\\t &payload, &payload_len);"
-          new_write = "\\tmemcpy(&session_key, (char *)auth_tok +\\n\\t       offsetof(struct ecryptfs_auth_tok, session_key),\\n\\t       sizeof(session_key));\\n\\trc = write_tag_64_packet(auth_tok_sig, &session_key,\\n\\t\\t\\t\\t &payload, &payload_len);"
+          old_write = "\trc = write_tag_64_packet(auth_tok_sig, &(auth_tok->session_key),\n\t\t\t\t &payload, &payload_len);"
+          new_write = "\tmemcpy(&session_key, (char *)auth_tok +\n\t       offsetof(struct ecryptfs_auth_tok, session_key),\n\t       sizeof(session_key));\n\trc = write_tag_64_packet(auth_tok_sig, &session_key,\n\t\t\t\t &payload, &payload_len);"
           if old_write not in fn:
               raise SystemExit("Expected decrypt_pki packed write_tag call not found")
           fn = fn.replace(old_write, new_write, 1)
-          old_parse = "\\trc = parse_tag_65_packet(&(auth_tok->session_key),\\n\\t\\t\\t\\t &cipher_code, msg);"
-          new_parse = "\\trc = parse_tag_65_packet(&session_key,\\n\\t\\t\\t\\t &cipher_code, msg);"
+          old_parse = "\trc = parse_tag_65_packet(&(auth_tok->session_key),\n\t\t\t\t &cipher_code, msg);"
+          new_parse = "\trc = parse_tag_65_packet(&session_key,\n\t\t\t\t &cipher_code, msg);"
           if old_parse not in fn:
               raise SystemExit("Expected decrypt_pki packed parse call not found")
           fn = fn.replace(old_parse, new_parse, 1)
-          old_fields = "\\tauth_tok->session_key.flags |= ECRYPTFS_CONTAINS_DECRYPTED_KEY;\\n\\tmemcpy(crypt_stat->key, auth_tok->session_key.decrypted_key,\\n\\t       auth_tok->session_key.decrypted_key_size);\\n\\tcrypt_stat->key_size = auth_tok->session_key.decrypted_key_size;"
-          new_fields = "\\tsession_key.flags |= ECRYPTFS_CONTAINS_DECRYPTED_KEY;\\n\\tmemcpy((char *)auth_tok +\\n\\t       offsetof(struct ecryptfs_auth_tok, session_key),\\n\\t       &session_key, sizeof(session_key));\\n\\tmemcpy(crypt_stat->key, session_key.decrypted_key,\\n\\t       session_key.decrypted_key_size);\\n\\tcrypt_stat->key_size = session_key.decrypted_key_size;"
+          old_fields = "\tauth_tok->session_key.flags |= ECRYPTFS_CONTAINS_DECRYPTED_KEY;\n\tmemcpy(crypt_stat->key, auth_tok->session_key.decrypted_key,\n\t       auth_tok->session_key.decrypted_key_size);\n\tcrypt_stat->key_size = auth_tok->session_key.decrypted_key_size;"
+          new_fields = "\tsession_key.flags |= ECRYPTFS_CONTAINS_DECRYPTED_KEY;\n\tmemcpy((char *)auth_tok +\n\t       offsetof(struct ecryptfs_auth_tok, session_key),\n\t       &session_key, sizeof(session_key));\n\tmemcpy(crypt_stat->key, session_key.decrypted_key,\n\t       session_key.decrypted_key_size);\n\tcrypt_stat->key_size = session_key.decrypted_key_size;"
           if old_fields not in fn:
               raise SystemExit("Expected decrypt_pki packed field accesses not found")
           fn = fn.replace(old_fields, new_fields, 1)
